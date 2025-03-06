@@ -198,46 +198,48 @@ class PuzzleSeeder extends Seeder
         try {
             DB::beginTransaction();
 
-            // Create a 10x10 puzzle
-            $puzzle = Puzzle::create([
-                'title' => 'Laravel Logic',
-                'description' => 'Test your Laravel knowledge with this crossword puzzle featuring core concepts, functions, and terminology.',
-                'grid_size' => 10,
-                'time_limit' => 15,
-                'is_active' => true,
-            ]);
-
-            // Initialize crossword generator
-            $generator = new CrosswordGenerator(10);
-
-            // Shuffle the Q&A pool to get random questions each time
-            shuffle($this->qaPool);
-
-            // Add words to the generator
-            foreach ($this->qaPool as $qa) {
-                if (strlen($qa[1]) <= 5) {  // Ensure word fits in grid
-                    $generator->addWord($qa[0], $qa[1]);
-                }
-            }
-
-            // Generate the crossword
-            $result = $generator->generate();
-
-            // Store grid data
-            $puzzle->grid_data = $result['grid'];
-            $puzzle->save();
-
-            // Create clues
-            foreach ($result['clues'] as $clue) {
-                Clue::create([
-                    'puzzle_id' => $puzzle->id,
-                    'question' => $clue['question'],
-                    'answer' => $clue['answer'],
-                    'direction' => $clue['direction'],
-                    'start_position_x' => $clue['start_x'],
-                    'start_position_y' => $clue['start_y'],
-                    'number' => $clue['number'],
+            for ($i = 0; $i < 50; $i++) {
+                // Create a 10x10 puzzle
+                $puzzle = Puzzle::create([
+                    'title' => 'Laravel Mastery',
+                    'description' => 'Test your Laravel knowledge with this crossword puzzle featuring core concepts, functions, and terminology.',
+                    'grid_size' => 10,
+                    'time_limit' => 10,
+                    'is_active' => true,
                 ]);
+
+                // Initialize crossword generator
+                $generator = new CrosswordGenerator(10);
+
+                // Shuffle the Q&A pool to get random questions each time
+                shuffle($this->qaPool);
+
+                // Add words to the generator
+                foreach ($this->qaPool as $qa) {
+                    if (strlen($qa[1]) <= 5) {  // Ensure word fits in grid
+                        $generator->addWord($qa[0], $qa[1]);
+                    }
+                }
+
+                // Generate the crossword
+                $result = $generator->generate();
+
+                // Store grid data
+                $puzzle->grid_data = $result['grid'];
+                $puzzle->save();
+
+                // Create clues
+                foreach ($result['clues'] as $clue) {
+                    Clue::create([
+                        'puzzle_id' => $puzzle->id,
+                        'question' => $clue['question'],
+                        'answer' => $clue['answer'],
+                        'direction' => $clue['direction'],
+                        'start_position_x' => $clue['start_x'],
+                        'start_position_y' => $clue['start_y'],
+                        'number' => $clue['number'],
+                    ]);
+                }
             }
 
             DB::commit();
