@@ -21,7 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Admin routes
-    Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['admin']], function () {
+    Route::group(['prefix' => 'admin', 'as' => 'admin.'], function () {
         Route::resource('puzzles', PuzzleController::class);
         Route::resource('clues', ClueController::class);
     });
@@ -31,6 +31,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/puzzles/{puzzle}', [GameController::class, 'show'])->name('puzzles.play');
     Route::post('/puzzles/{puzzle}/validate', [GameController::class, 'validateAnswer'])->name('puzzles.validate');
     Route::post('/puzzles/{puzzle}/submit', [GameController::class, 'submit'])->name('puzzles.submit');
+    Route::post('/puzzles/{puzzle}/state', [GameController::class, 'updateGameState'])->name('puzzles.updateState');
+    Route::get('/puzzles/{puzzle}/completion', [GameController::class, 'completion'])->name('puzzles.completion');
 
     // Leaderboard routes
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');

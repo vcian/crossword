@@ -63,7 +63,7 @@
                                                  name="time_limit"
                                                  type="number"
                                                  class="mt-1 block w-full"
-                                                 :value="old('time_limit', $puzzle->time_limit ?? '')"
+                                                 :value="old('time_limit', $puzzle->time_limit ?? null)"
                                                  min="1" />
                                     <x-input-error :messages="$errors->get('time_limit')" class="mt-2" />
                                 </div>
@@ -74,10 +74,10 @@
                                     <select id="is_active"
                                             name="is_active"
                                             class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                                        <option value="1" {{ old('is_active', $puzzle->is_active ?? true) ? 'selected' : '' }}>
+                                        <option value="1" {{ old('is_active', $puzzle->is_active ?? true) == 1 ? 'selected' : '' }}>
                                             Active
                                         </option>
-                                        <option value="0" {{ old('is_active', $puzzle->is_active ?? true) ? '' : 'selected' }}>
+                                        <option value="0" {{ old('is_active', $puzzle->is_active ?? true) == 0 ? 'selected' : '' }}>
                                             Inactive
                                         </option>
                                     </select>

@@ -2,110 +2,93 @@ class CrosswordGrid {
     constructor(gridSize, clues) {
         this.gridSize = gridSize;
         this.clues = clues;
-        this.grid = Array(gridSize).fill().map(() => Array(gridSize).fill(null));
+        this.grid = Array(gridSize).fill().map(() => 
+            Array(gridSize).fill().map(() => ({ letter: '', isActive: false }))
+        );
         this.selectedCell = null;
-        this.selectedClue = null;
         this.direction = 'across';
+        this.currentClue = null;
     }
 
     initialize() {
-        // Initialize grid with clues
+        // Mark active cells and set clue numbers
         this.clues.forEach(clue => {
-            const { start_position_x, start_position_y, answer, direction } = clue;
-            const letters = answer.split('');
-            
-            letters.forEach((letter, index) => {
-                const x = direction === 'across' ? start_position_x + index : start_position_x;
-                const y = direction === 'down' ? start_position_y + index : start_position_y;
-                
-                if (x < this.gridSize && y < this.gridSize) {
-                    if (!this.grid[y][x]) {
-                        this.grid[y][x] = {
-                            letter: '',
-                            isActive: true,
-                            number: index === 0 ? clue.number : null,
-                            clues: []
-                        };
-                    }
-                    this.grid[y][x].clues.push(clue);
-                }
-            });
-        });
+            const { start_position_x: x, start_position_y: y, direction, answer } = clue;
+            const length = answer.length;
 
-        // Mark inactive cells
-        for (let y = 0; y < this.gridSize; y++) {
-            for (let x = 0; x < this.gridSize; x++) {
-                if (!this.grid[y][x]) {
-                    this.grid[y][x] = {
-                        letter: '',
-                        isActive: false,
-                        number: null,
-                        clues: []
-                    };
+            // Mark cells for this word
+            for (let i = 0; i < length; i++) {
+                const cellX = direction === 'across' ? x + i : x;
+                const cellY = direction === 'down' ? y + i : y;
+                
+                if (cellX < this.gridSize && cellY < this.gridSize) {
+                    this.grid[cellY][cellX].isActive = true;
                 }
             }
-        }
+        });
     }
 
     selectCell(x, y) {
-        if (!this.grid[y][x].isActive) return;
+        if (!this.grid[y][x].isActive) return null;
 
         this.selectedCell = { x, y };
-        const cell = this.grid[y][x];
-
-        // Find available clues for this cell
-        const acrossClue = cell.clues.find(c => c.direction === 'across');
-        const downClue = cell.clues.find(c => c.direction === 'down');
-
-        // If cell has both directions available, toggle between them
-        if (acrossClue && downClue) {
+        
+        // Find the current clue based on selected cell and direction
+        let foundClue = this.findClueForCell(x, y, this.direction);
+        
+        // If no clue found in current direction, try the other direction
+        if (!foundClue) {
             this.direction = this.direction === 'across' ? 'down' : 'across';
-        }
-        // Otherwise use whatever direction is available
-        else if (acrossClue) {
-            this.direction = 'across';
-        }
-        else if (downClue) {
-            this.direction = 'down';
+            foundClue = this.findClueForCell(x, y, this.direction);
         }
 
-        this.selectedClue = this.direction === 'across' ? acrossClue : downClue;
-        this.highlightCurrentWord();
+        if (foundClue) {
+            this.currentClue = foundClue;
+            this.highlightCurrentWord();
+        }
 
-        return this.selectedClue;
+        return foundClue;
+    }
+
+    findClueForCell(x, y, direction) {
+        return this.clues.find(clue => {
+            if (clue.direction !== direction) return false;
+
+            if (direction === 'across') {
+                return y === clue.start_position_y &&
+                       x >= clue.start_position_x &&
+                       x < clue.start_position_x + clue.answer.length;
+            } else {
+                return x === clue.start_position_x &&
+                       y >= clue.start_position_y &&
+                       y < clue.start_position_y + clue.answer.length;
+            }
+        });
     }
 
     highlightCurrentWord() {
-        if (!this.selectedClue) return;
+        if (!this.currentClue) return;
 
-        const { start_position_x, start_position_y, answer, direction } = this.selectedClue;
+        const { start_position_x, start_position_y, answer, direction } = this.currentClue;
         const length = answer.length;
 
-        // Remove all highlights
-        document.querySelectorAll('.crossword-cell').forEach(cell => {
-            cell.classList.remove('bg-blue-100', 'bg-yellow-100');
-        });
+        // Clear previous highlighting
+        for (let y = 0; y < this.gridSize; y++) {
+            for (let x = 0; x < this.gridSize; x++) {
+                const cell = document.querySelector(`[data-cell="${x}-${y}"]`);
+                if (cell) {
+                    cell.classList.remove('bg-blue-100');
+                }
+            }
+        }
 
         // Highlight current word
         for (let i = 0; i < length; i++) {
             const x = direction === 'across' ? start_position_x + i : start_position_x;
             const y = direction === 'down' ? start_position_y + i : start_position_y;
-            
-            if (x < this.gridSize && y < this.gridSize) {
-                const cell = document.querySelector(`[data-cell="${x}-${y}"]`);
-                if (cell) {
-                    cell.classList.add('bg-blue-100');
-                }
-            }
-        }
-
-        // Highlight selected cell
-        if (this.selectedCell) {
-            const selectedElement = document.querySelector(
-                `[data-cell="${this.selectedCell.x}-${this.selectedCell.y}"]`
-            );
-            if (selectedElement) {
-                selectedElement.classList.add('bg-yellow-100');
+            const cell = document.querySelector(`[data-cell="${x}-${y}"]`);
+            if (cell) {
+                cell.classList.add('bg-blue-100');
             }
         }
     }
@@ -123,7 +106,7 @@ class CrosswordGrid {
             nextY = y + 1;
         }
 
-        if (nextX < this.gridSize && nextY < this.gridSize && this.grid[nextY][nextX].isActive) {
+        if (nextX < this.gridSize && nextY < this.gridSize) {
             this.selectCell(nextX, nextY);
         }
     }
@@ -141,36 +124,27 @@ class CrosswordGrid {
             prevY = y - 1;
         }
 
-        if (prevX >= 0 && prevY >= 0 && this.grid[prevY][prevX].isActive) {
+        if (prevX >= 0 && prevY >= 0) {
             this.selectCell(prevX, prevY);
         }
     }
 
     validateAnswer(clueId, answer) {
         const clue = this.clues.find(c => c.id === clueId);
-        return clue ? clue.answer.toLowerCase() === answer.toLowerCase() : false;
+        return clue && clue.answer.toLowerCase() === answer.toLowerCase();
     }
 
     getCurrentAnswers() {
         const answers = {};
-        
         this.clues.forEach(clue => {
-            const { start_position_x, start_position_y, direction, id } = clue;
             let answer = '';
-            
             for (let i = 0; i < clue.answer.length; i++) {
-                const x = direction === 'across' ? start_position_x + i : start_position_x;
-                const y = direction === 'down' ? start_position_y + i : start_position_y;
-                
-                if (x < this.gridSize && y < this.gridSize) {
-                    const cell = this.grid[y][x];
-                    answer += cell.letter || ' ';
-                }
+                const x = clue.direction === 'across' ? clue.start_position_x + i : clue.start_position_x;
+                const y = clue.direction === 'down' ? clue.start_position_y + i : clue.start_position_y;
+                answer += this.grid[y][x].letter || '';
             }
-            
-            answers[id] = answer.trim();
+            answers[clue.id] = answer;
         });
-        
         return answers;
     }
 }

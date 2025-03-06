@@ -12,9 +12,10 @@ class GameController extends Controller
     public function index()
     {
         $puzzles = Puzzle::where('is_active', true)
+            ->with(['clues'])
             ->latest()
             ->paginate(12);
-            
+
         return view('game.index', compact('puzzles'));
     }
 
@@ -25,7 +26,34 @@ class GameController extends Controller
             ->where('puzzle_id', $puzzle->id)
             ->first();
 
-        return view('game.show', compact('puzzle', 'userScore'));
+        $remainingTime = null;
+        if ($puzzle->time_limit) {
+            if ($userScore && $userScore->progress_data && isset($userScore->progress_data['start_time'])) {
+                $elapsedTime = time() - $userScore->progress_data['start_time'];
+                
+                $remainingTime = max(0, ($puzzle->time_limit * 60) - $elapsedTime);
+            } else {
+                // If no progress data, create new progress
+                $userScore = UserScore::updateOrCreate(
+                    [
+                        'user_id' => auth()->id(),
+                        'puzzle_id' => $puzzle->id,
+                    ],
+                    [
+                        'score' => 0,
+                        'completion_time' => 0,
+                        'completed' => false,
+                        'progress_data' => [
+                            'start_time' => time(),
+                            'letters' => []
+                        ]
+                    ]
+                );
+                $remainingTime = $puzzle->time_limit * 60;
+            }
+        }
+
+        return view('game.show', compact('puzzle', 'userScore', 'remainingTime'));
     }
 
     public function validateAnswer(Request $request, Puzzle $puzzle)
@@ -43,11 +71,26 @@ class GameController extends Controller
         ]);
     }
 
+    public function completion(Puzzle $puzzle)
+    {
+        $userScore = UserScore::where('user_id', auth()->id())
+            ->where('puzzle_id', $puzzle->id)
+            ->firstOrFail();
+
+        $winnerDeclarationTime = now()->setTime(18, 0, 0);
+        if ($winnerDeclarationTime->isPast()) {
+            $winnerDeclarationTime = $winnerDeclarationTime->addDay();
+        }
+        $timeRemaining = now()->diffInSeconds($winnerDeclarationTime, false);
+
+        return view('game.completion', compact('puzzle', 'userScore', 'winnerDeclarationTime', 'timeRemaining'));
+    }
+
     public function submit(Request $request, Puzzle $puzzle)
     {
         $validated = $request->validate([
-            'completion_time' => 'required|integer',
             'answers' => 'required|array',
+            'completion_time' => 'required|integer'
         ]);
 
         try {
@@ -55,14 +98,45 @@ class GameController extends Controller
             $totalClues = $puzzle->clues()->count();
             $correctAnswers = 0;
 
-            foreach ($validated['answers'] as $clueId => $answer) {
-                $clue = $puzzle->clues()->findOrFail($clueId);
-                if (strtolower($clue->answer) === strtolower($answer)) {
+            // First, organize the submitted letters by their positions
+            $gridLetters = [];
+            foreach ($validated['answers'] as $position => $letter) {
+                list($x, $y) = explode('-', $position);
+                $gridLetters[$y][$x] = $letter;
+            }
+
+            // Check each clue
+            foreach ($puzzle->clues as $clue) {
+                $submittedAnswer = '';
+                $length = strlen($clue->answer);
+
+                // Reconstruct the answer based on direction and starting position
+                for ($i = 0; $i < $length; $i++) {
+                    if ($clue->direction === 'across') {
+                        $x = $clue->start_position_x + $i;
+                        $y = $clue->start_position_y;
+                    } else {
+                        $x = $clue->start_position_x;
+                        $y = $clue->start_position_y + $i;
+                    }
+                    
+                    $submittedAnswer .= $gridLetters[$y][$x] ?? '';
+                }
+
+                if (strtoupper(trim($submittedAnswer)) === strtoupper($clue->answer)) {
                     $correctAnswers++;
                 }
             }
 
-            $score = ($correctAnswers / $totalClues) * 100;
+            $score = round(($correctAnswers / $totalClues) * 100, 1);
+
+            // Check if time limit is exceeded
+            if ($puzzle->time_limit && $validated['completion_time'] > ($puzzle->time_limit * 60)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Time limit exceeded! Please try again.',
+                ]);
+            }
 
             // Save or update user score
             UserScore::updateOrCreate(
@@ -81,7 +155,8 @@ class GameController extends Controller
             return response()->json([
                 'success' => true,
                 'score' => $score,
-                'message' => 'Puzzle completed successfully!',
+                'message' => "Puzzle completed! Your score: {$score}%",
+                'redirect' => route('puzzles.completion', $puzzle),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to submit puzzle: ' . $e->getMessage());
@@ -90,5 +165,44 @@ class GameController extends Controller
                 'message' => 'Failed to submit puzzle. Please try again.',
             ], 500);
         }
+    }
+
+    public function updateGameState(Request $request, Puzzle $puzzle)
+    {
+        $validated = $request->validate([
+            'letters' => 'required|array',
+            'completed' => 'required|boolean'
+        ]);
+
+        $userScore = UserScore::where('user_id', auth()->id())
+            ->where('puzzle_id', $puzzle->id)
+            ->first();
+
+        if (!$userScore) {
+            $userScore = UserScore::create([
+                'user_id' => auth()->id(),
+                'puzzle_id' => $puzzle->id,
+                'score' => 0,
+                'completion_time' => 0,
+                'completed' => false,
+                'progress_data' => [
+                    'start_time' => time(),
+                    'letters' => $validated['letters']
+                ]
+            ]);
+        } else {
+            $progressData = $userScore->progress_data ?? [];
+            $progressData['letters'] = $validated['letters'];
+            if (!isset($progressData['start_time'])) {
+                $progressData['start_time'] = time();
+            }
+            $userScore->progress_data = $progressData;
+            $userScore->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'remaining_time' => $puzzle->time_limit ? max(0, ($puzzle->time_limit * 60) - (time() - $userScore->progress_data['start_time'])) : null
+        ]);
     }
 }

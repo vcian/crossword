@@ -16,6 +16,13 @@ class LeaderboardController extends Controller
             ->orderBy('completion_time', 'asc')
             ->paginate(20);
 
+        // Add debug information
+        \Log::info('Leaderboard Scores:', [
+            'count' => $topScores->count(),
+            'total' => $topScores->total(),
+            'scores' => $topScores->items()
+        ]);
+
         return view('leaderboard.index', compact('topScores'));
     }
 
@@ -27,6 +34,14 @@ class LeaderboardController extends Controller
             ->orderBy('score', 'desc')
             ->orderBy('completion_time', 'asc')
             ->paginate(20);
+
+        // Add debug information
+        \Log::info('Puzzle Scores:', [
+            'puzzle_id' => $puzzle->id,
+            'count' => $puzzleScores->count(),
+            'total' => $puzzleScores->total(),
+            'scores' => $puzzleScores->items()
+        ]);
 
         return view('leaderboard.show', compact('puzzle', 'puzzleScores'));
     }

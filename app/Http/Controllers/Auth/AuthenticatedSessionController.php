@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Puzzle;
+use App\Models\UserScore;
+use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +31,28 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Check if user is admin
+        if (Auth::user()->is_admin) {
+            return redirect()->route('leaderboard');
+        }
+
+        // Check if user has completed a puzzle recently (within last 24 hours)
+        $latestScore = UserScore::where('user_id', Auth::id())
+            ->where('completed', true)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->latest()
+            ->first();
+
+        if ($latestScore) {
+            // Redirect to completion page with the puzzle
+            return redirect()->route('puzzles.completion', $latestScore->puzzle);
+        }
+
+        // If no recent completion, get a random active puzzle
+        $randomPuzzle = Puzzle::where('is_active', true)->inRandomOrder()->first();
+        return $randomPuzzle 
+            ? redirect()->route('puzzles.play', $randomPuzzle)
+            : redirect()->route('home');
     }
 
     /**

@@ -1,14 +1,21 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Global Leaderboard') }}
-        </h2>
-    </x-slot>
+@extends('layouts.app')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
+@section('header')
+    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        {{ __('Global Leaderboard') }}
+    </h2>
+@endsection
+
+@section('content')
+<div class="py-12">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="p-6">
+                @if($topScores->isEmpty())
+                    <div class="text-center py-8">
+                        <p class="text-gray-600">No scores available yet.</p>
+                    </div>
+                @else
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -34,7 +41,7 @@
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach ($topScores as $index => $score)
+                                @foreach($topScores as $index => $score)
                                     <tr class="{{ $index % 2 ? 'bg-gray-50' : 'bg-white' }}">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {{ $topScores->firstItem() + $index }}
@@ -65,8 +72,9 @@
                     <div class="mt-6">
                         {{ $topScores->links() }}
                     </div>
-                </div>
+                @endif
             </div>
         </div>
     </div>
-</x-app-layout>
+</div>
+@endsection
