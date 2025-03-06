@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Your Verification Code</title>
+    <title>Login Verification Code</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -86,17 +86,17 @@
         </div>
         
         <div class="content">
-            <p>Hello!</p>
+            <p>Hello Puzzle Solver!</p>
             
-            <p>Thank you for registering with our Crossword Puzzle platform. To complete your registration, please use the following verification code:</p>
+            <p>You've requested to login to your Crossword Puzzle account. Please use the following verification code to complete your login:</p>
             
             <div class="otp-code">
                 {{ $otp }}
             </div>
             
-            <p>This code will expire in 10 minutes for security purposes.</p>
+            <p>This code will expire in 5 minutes for security purposes.</p>
             
-            <p>If you didn't request this code, please ignore this email.</p>
+            <p>If you didn't attempt to login, please ignore this email and ensure your account security.</p>
         </div>
         
         <div class="footer">

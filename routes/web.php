@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\PuzzleController;
 use App\Http\Controllers\Admin\ClueController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -37,6 +38,14 @@ Route::middleware('auth')->group(function () {
     // Leaderboard routes
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');
     Route::get('/leaderboard/{puzzle}', [LeaderboardController::class, 'show'])->name('leaderboard.puzzle');
+});
+
+Route::middleware('guest')->group(function () {
+    Route::post('/login/send-otp', [AuthenticatedSessionController::class, 'sendOtp'])
+        ->name('login.sendOtp');
+    
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->name('login');
 });
 
 require __DIR__.'/auth.php';
