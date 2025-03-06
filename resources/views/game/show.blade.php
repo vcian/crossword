@@ -5,17 +5,29 @@
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6">
+
                 <div class="mb-6">
                     <div class="flex justify-between items-center">
                         <div>
                             <h1 class="text-2xl font-bold text-gray-900">{{ $puzzle->title }}</h1>
-                            <p class="mt-2 text-gray-600">{{ $puzzle->description }}</p>
+                            <!-- <p class="mt-2 text-gray-600">{{ $puzzle->description }}</p> -->
                         </div>
                         @if($puzzle->time_limit)
                             <div class="text-xl font-bold" id="timer" data-remaining-time="{{ $remainingTime }}">
                                 <span id="minutes">{{ str_pad(floor($remainingTime / 60), 2, '0', STR_PAD_LEFT) }}</span>:<span id="seconds">{{ str_pad($remainingTime % 60, 2, '0', STR_PAD_LEFT) }}</span>
                             </div>
                         @endif
+                    </div>
+                </div>
+
+                <!-- Current Question Display -->
+                <div id="current-question-display" class="mb-4 p-4 bg-blue-50 rounded-lg shadow-sm hidden">
+                    <div class="flex items-start space-x-2">
+                        <span class="font-bold text-blue-800" id="current-clue-number"></span>
+                        <div>
+                            <p class="font-medium text-blue-800" id="current-clue-direction"></p>
+                            <p class="text-blue-600" id="current-clue-text"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -63,7 +75,7 @@
                                             @endif
                                             <input type="text" 
                                                    maxlength="1" 
-                                                   class="w-full h-full text-center uppercase font-bold text-lg bg-transparent focus:outline-none focus:bg-blue-50"
+                                                   class="w-full h-full text-center uppercase font-bold text-xs bg-transparent focus:outline-none focus:bg-blue-50"
                                                    {{ $userScore && $userScore->completed ? 'disabled' : '' }}>
                                         @endif
                                     </div>
@@ -116,7 +128,7 @@
         </div>
     </div>
 </div>
-
+@endsection
 @push('scripts')
 <script>
 class CrosswordGrid {
@@ -131,34 +143,59 @@ class CrosswordGrid {
         this.selectedCell = null;
     }
 
-    selectCell(x, y) {
-        this.selectedCell = { x, y };
-        
-        // Find the clue that starts at this position
-        const clue = this.clues.find(c => 
-            c.start_position_x === x && 
-            c.start_position_y === y &&
-            c.direction === this.direction
-        );
+    findClueForCell(x, y) {
+        // First try to find a clue in the current direction
+        let clue = this.clues.find(c => {
+            if (c.direction !== this.direction) return false;
+            
+            if (this.direction === 'across') {
+                return y === c.start_position_y &&
+                       x >= c.start_position_x &&
+                       x < c.start_position_x + c.answer.length;
+            } else {
+                return x === c.start_position_x &&
+                       y >= c.start_position_y &&
+                       y < c.start_position_y + c.answer.length;
+            }
+        });
 
         // If no clue found in current direction, try the other direction
         if (!clue) {
             const otherDirection = this.direction === 'across' ? 'down' : 'across';
-            const alternateClue = this.clues.find(c => 
-                c.start_position_x === x && 
-                c.start_position_y === y &&
-                c.direction === otherDirection
-            );
-            if (alternateClue) {
+            clue = this.clues.find(c => {
+                if (c.direction !== otherDirection) return false;
+                
+                if (otherDirection === 'across') {
+                    return y === c.start_position_y &&
+                           x >= c.start_position_x &&
+                           x < c.start_position_x + c.answer.length;
+                } else {
+                    return x === c.start_position_x &&
+                           y >= c.start_position_y &&
+                           y < c.start_position_y + c.answer.length;
+                }
+            });
+
+            // If found a clue in the other direction, switch to it
+            if (clue) {
                 this.direction = otherDirection;
-                return alternateClue;
             }
         }
 
-        // Highlight the selected cell
+        return clue;
+    }
+
+    selectCell(x, y) {
+        this.selectedCell = { x, y };
+        
+        // Find the clue for this cell
+        const clue = this.findClueForCell(x, y);
+        
+        // Update visual states
         document.querySelectorAll('.crossword-cell').forEach(cell => {
             cell.classList.remove('bg-blue-50');
         });
+        
         const selectedElement = document.querySelector(`[data-cell="${x}-${y}"]`);
         if (selectedElement) {
             selectedElement.classList.add('bg-blue-50');
@@ -166,7 +203,70 @@ class CrosswordGrid {
             if (input) input.focus();
         }
 
+        // Highlight the current word
+        this.highlightCurrentWord(clue);
+        
+        // Update the question display
+        this.updateCurrentQuestion(clue);
+
         return clue;
+    }
+
+    highlightCurrentWord(clue) {
+        // Remove previous highlights
+        document.querySelectorAll('.crossword-cell').forEach(cell => {
+            cell.classList.remove('bg-blue-100');
+        });
+
+        if (!clue) return;
+
+        // Add highlights for current word
+        if (clue.direction === 'across') {
+            for (let i = 0; i < clue.answer.length; i++) {
+                const cell = document.querySelector(`[data-cell="${clue.start_position_x + i}-${clue.start_position_y}"]`);
+                if (cell) cell.classList.add('bg-blue-100');
+            }
+        } else {
+            for (let i = 0; i < clue.answer.length; i++) {
+                const cell = document.querySelector(`[data-cell="${clue.start_position_x}-${clue.start_position_y + i}"]`);
+                if (cell) cell.classList.add('bg-blue-100');
+            }
+        }
+
+        // Highlight the clue in the list
+        document.querySelectorAll('[data-clue]').forEach(clueElement => {
+            clueElement.classList.remove('bg-blue-100');
+            if (clueElement.dataset.clue === clue.id.toString()) {
+                clueElement.classList.add('bg-blue-100');
+            }
+        });
+    }
+
+    updateCurrentQuestion(clue) {
+        const display = document.getElementById('current-question-display');
+        const numberElement = document.getElementById('current-clue-number');
+        const directionElement = document.getElementById('current-clue-direction');
+        const textElement = document.getElementById('current-clue-text');
+
+        if (clue) {
+            numberElement.textContent = clue.number + '.';
+            directionElement.textContent = clue.direction.charAt(0).toUpperCase() + clue.direction.slice(1);
+            textElement.textContent = clue.question;
+            display.classList.remove('hidden');
+        } else {
+            display.classList.add('hidden');
+        }
+    }
+
+    toggleDirection() {
+        this.direction = this.direction === 'across' ? 'down' : 'across';
+        if (this.selectedCell) {
+            const clue = this.findClueForCell(this.selectedCell.x, this.selectedCell.y);
+            if (clue) {
+                this.highlightCurrentWord(clue);
+                this.updateCurrentQuestion(clue);
+            }
+        }
     }
 
     moveToNextCell() {
@@ -278,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Error submitting puzzle:', error);
-            toastr.error('An error occurred while submitting the puzzle. Please try again.');
+            // toastr.error('An error occurred while submitting the puzzle. Please try again.');
         }
     }
 
@@ -340,20 +440,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!cell) return;
 
         const [x, y] = cell.dataset.cell.split('-').map(Number);
-        const selectedClue = crossword.selectCell(x, y);
-
-        if (selectedClue) {
-            // Highlight the selected clue in the clues list
-            document.querySelectorAll('[data-clue]').forEach(clueElement => {
-                clueElement.classList.remove('bg-blue-100');
-                if (clueElement.dataset.clue === selectedClue.id.toString()) {
-                    clueElement.classList.add('bg-blue-100');
-                }
-            });
+        
+        // If clicking the same cell, toggle direction
+        if (crossword.selectedCell && 
+            crossword.selectedCell.x === x && 
+            crossword.selectedCell.y === y) {
+            crossword.toggleDirection();
+        } else {
+            crossword.selectCell(x, y);
         }
     });
 
-    // Handle clue selection
+    // Handle clue selection from the list
     document.querySelectorAll('[data-clue]').forEach(clueElement => {
         clueElement.addEventListener('click', function() {
             const clueId = parseInt(this.dataset.clue);
@@ -361,8 +459,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (clue) {
                 crossword.direction = clue.direction;
                 crossword.selectCell(clue.start_position_x, clue.start_position_y);
-                const input = document.querySelector(`[data-cell="${clue.start_position_x}-${clue.start_position_y}"] input`);
-                if (input) input.focus();
             }
         });
     });
@@ -381,42 +477,31 @@ document.addEventListener('DOMContentLoaded', function() {
             crossword.direction = 'down';
             if (e.key === 'ArrowDown') crossword.moveToNextCell();
             else crossword.moveToPreviousCell();
+        } else if (e.code === 'Space') {
+            e.preventDefault();
+            crossword.toggleDirection();
         }
     });
 
     // Handle input
     const cells = document.querySelectorAll('.crossword-cell input');
-    
     cells.forEach(input => {
-        // Handle input changes
         input.addEventListener('input', function(e) {
-            e.preventDefault(); // Prevent default behavior
-            
-            // Clear the input first
+            e.preventDefault();
             this.value = '';
-            
-            // Only take the first character and convert to uppercase
             const char = e.data ? e.data[0].toUpperCase() : '';
             if (char && char.match(/[A-Z]/i)) {
                 this.value = char;
-                
-                // Update the grid data
-                const [x, y] = this.closest('.crossword-cell').dataset.cell.split('-');
-                crossword.grid[y][x].letter = char;
-                
-                // Move to next cell only after valid input
                 crossword.moveToNextCell();
             }
         });
 
-        // Prevent key press default behavior
         input.addEventListener('keypress', function(e) {
             if (e.key.match(/[a-zA-Z]/)) {
                 e.preventDefault();
             }
         });
 
-        // Handle backspace
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Backspace' && this.value === '') {
                 e.preventDefault();
@@ -424,15 +509,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Handle cell selection
         input.addEventListener('focus', function() {
             const cell = this.closest('.crossword-cell');
-            const [x, y] = cell.dataset.cell.split('-');
+            const [x, y] = cell.dataset.cell.split('-').map(Number);
             crossword.selectCell(parseInt(x), parseInt(y));
         });
     });
+
+    // Select first active cell on load
+    const firstCell = document.querySelector('.crossword-cell.bg-white');
+    if (firstCell) {
+        const [x, y] = firstCell.dataset.cell.split('-').map(Number);
+        crossword.selectCell(x, y);
+    }
 });
 </script>
 @endpush
-
-@endsection
