@@ -75,7 +75,7 @@
                                             @endif
                                             <input type="text" 
                                                    maxlength="1" 
-                                                   class="w-full h-full text-center uppercase font-bold text-xs bg-transparent focus:outline-none focus:bg-blue-50"
+                                                   class="w-full h-full text-center uppercase font-bold text-lg bg-transparent focus:outline-none focus:bg-blue-50"
                                                    {{ $userScore && $userScore->completed ? 'disabled' : '' }}>
                                         @endif
                                     </div>
@@ -273,16 +273,30 @@ class CrosswordGrid {
         if (!this.selectedCell) return;
 
         let { x, y } = this.selectedCell;
+        let nextCell = null;
         
         if (this.direction === 'across') {
-            x = Math.min(x + 1, this.size - 1);
+            // Try the immediate next cell first
+            nextCell = document.querySelector(`[data-cell="${x + 1}-${y}"] input`);
+            if (nextCell) {
+                this.selectCell(x + 1, y);
+                nextCell.focus();
+                nextCell.select();
+            }
         } else {
-            y = Math.min(y + 1, this.size - 1);
-        }
-
-        const nextCell = document.querySelector(`[data-cell="${x}-${y}"] input`);
-        if (nextCell) {
-            this.selectCell(x, y);
+            // Vertical movement remains the same
+            let nextY = y + 1;
+            while (nextY < this.size) {
+                nextCell = document.querySelector(`[data-cell="${x}-${nextY}"] input`);
+                if (nextCell) break;
+                nextY++;
+            }
+            
+            if (nextCell) {
+                this.selectCell(x, nextY);
+                nextCell.focus();
+                nextCell.select();
+            }
         }
     }
 
@@ -290,16 +304,30 @@ class CrosswordGrid {
         if (!this.selectedCell) return;
 
         let { x, y } = this.selectedCell;
+        let prevCell = null;
+        let prevX = x;
+        let prevY = y;
         
         if (this.direction === 'across') {
-            x = Math.max(x - 1, 0);
+            prevX = x - 1;
+            while (prevX >= 0) {
+                prevCell = document.querySelector(`[data-cell="${prevX}-${y}"] input`);
+                if (prevCell) break;
+                prevX--;
+            }
         } else {
-            y = Math.max(y - 1, 0);
+            prevY = y - 1;
+            while (prevY >= 0) {
+                prevCell = document.querySelector(`[data-cell="${x}-${prevY}"] input`);
+                if (prevCell) break;
+                prevY--;
+            }
         }
 
-        const prevCell = document.querySelector(`[data-cell="${x}-${y}"] input`);
         if (prevCell) {
-            this.selectCell(x, y);
+            this.selectCell(prevX, prevY);
+            prevCell.focus();
+            prevCell.select();
         }
     }
 }
@@ -486,33 +514,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle input
     const cells = document.querySelectorAll('.crossword-cell input');
     cells.forEach(input => {
-        input.addEventListener('input', function(e) {
-            e.preventDefault();
-            this.value = '';
-            const char = e.data ? e.data[0].toUpperCase() : '';
-            if (char && char.match(/[A-Z]/i)) {
-                this.value = char;
-                crossword.moveToNextCell();
-            }
-        });
-
-        input.addEventListener('keypress', function(e) {
-            if (e.key.match(/[a-zA-Z]/)) {
-                e.preventDefault();
-            }
-        });
-
         input.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' && this.value === '') {
-                e.preventDefault();
-                crossword.moveToPreviousCell();
+            const cell = this.closest('.crossword-cell');
+            const [x, y] = cell.dataset.cell.split('-').map(Number);
+
+            switch (e.key) {
+                case 'Backspace':
+                    e.preventDefault();
+                    if (this.value) {
+                        this.value = '';
+                    } else {
+                        crossword.moveToPreviousCell();
+                    }
+                    break;
+
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                case 'ArrowUp':
+                case 'ArrowDown':
+                case 'Space':
+                    // Let the document keydown handler manage navigation
+                    break;
+
+                default:
+                    if (e.key.match(/^[a-zA-Z]$/)) {
+                        e.preventDefault();
+                        this.value = e.key.toUpperCase();
+                        // Remove the automatic movement to next cell
+                    } else {
+                        e.preventDefault();
+                    }
+                    break;
             }
         });
 
+        input.addEventListener('input', function(e) {
+            // Prevent any input event handling as we're handling it in keydown
+            e.preventDefault();
+            this.value = this.value.slice(-1).toUpperCase();
+        });
+
+        // Keep the focus handler
         input.addEventListener('focus', function() {
             const cell = this.closest('.crossword-cell');
             const [x, y] = cell.dataset.cell.split('-').map(Number);
-            crossword.selectCell(parseInt(x), parseInt(y));
+            crossword.selectCell(x, y);
+            this.select();
         });
     });
 

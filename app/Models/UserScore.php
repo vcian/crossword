@@ -24,6 +24,7 @@ class UserScore extends Model
         'completion_time' => 'integer',
         'completed' => 'boolean',
         'progress_data' => 'array',
+        'completed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

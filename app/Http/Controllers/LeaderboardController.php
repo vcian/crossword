@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Puzzle;
 use App\Models\UserScore;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class LeaderboardController extends Controller
 {
@@ -16,8 +17,7 @@ class LeaderboardController extends Controller
             ->orderBy('completion_time', 'asc')
             ->paginate(20);
 
-        // Add debug information
-        \Log::info('Leaderboard Scores:', [
+        Log::info('Leaderboard Scores:', [
             'count' => $topScores->count(),
             'total' => $topScores->total(),
             'scores' => $topScores->items()
@@ -26,23 +26,21 @@ class LeaderboardController extends Controller
         return view('leaderboard.index', compact('topScores'));
     }
 
-    public function show(Puzzle $puzzle)
+    public function show($puzzleId)
     {
-        $puzzleScores = UserScore::with('user')
-            ->where('puzzle_id', $puzzle->id)
+        $puzzle = Puzzle::findOrFail($puzzleId);
+        
+        $leaderboard = UserScore::where('puzzle_id', $puzzleId)
+            ->with('user')
             ->where('completed', true)
             ->orderBy('score', 'desc')
             ->orderBy('completion_time', 'asc')
-            ->paginate(20);
+            ->take(100)
+            ->get();
 
-        // Add debug information
-        \Log::info('Puzzle Scores:', [
-            'puzzle_id' => $puzzle->id,
-            'count' => $puzzleScores->count(),
-            'total' => $puzzleScores->total(),
-            'scores' => $puzzleScores->items()
+        return view('leaderboard.puzzle', [
+            'puzzle' => $puzzle,
+            'leaderboard' => $leaderboard
         ]);
-
-        return view('leaderboard.show', compact('puzzle', 'puzzleScores'));
     }
 }

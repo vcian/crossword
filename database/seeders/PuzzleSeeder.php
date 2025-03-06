@@ -203,13 +203,13 @@ class PuzzleSeeder extends Seeder
                 $puzzle = Puzzle::create([
                     'title' => 'Laravel Mastery',
                     'description' => 'Test your Laravel knowledge with this crossword puzzle featuring core concepts, functions, and terminology.',
-                    'grid_size' => 10,
-                    'time_limit' => 10,
+                    'grid_size' => 6,
+                    'time_limit' => 2,
                     'is_active' => true,
                 ]);
 
                 // Initialize crossword generator
-                $generator = new CrosswordGenerator(10);
+                $generator = new CrosswordGenerator(6);
 
                 // Shuffle the Q&A pool to get random questions each time
                 shuffle($this->qaPool);
