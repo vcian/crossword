@@ -572,3 +572,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
+@section('title', 'Crossword Puzzle')

@@ -36,4 +36,17 @@ class UserScore extends Model
     {
         return $this->belongsTo(Puzzle::class);
     }
+
+    public function getCurrentPosition(): int
+    {
+        return UserScore::where('puzzle_id', $this->puzzle_id)
+            ->where(function ($query) {
+                $query->where('score', '>', $this->score)
+                    ->orWhere(function ($q) {
+                        $q->where('score', '=', $this->score)
+                            ->where('completion_time', '<', $this->completion_time);
+                    });
+            })
+            ->count() + 1;
+    }
 }

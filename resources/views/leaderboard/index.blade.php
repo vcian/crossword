@@ -2,18 +2,27 @@
 
 @section('header')
     <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ __('Global Leaderboard') }}
+        {{ __('Today\'s Global Leaderboard') }}
     </h2>
 @endsection
+
+@section('title', 'Today\'s Crossword Leaderboard')
 
 @section('content')
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6">
+                <!-- Date Display -->
+                <div class="text-center mb-6">
+                    <h3 class="text-lg font-medium text-gray-900">
+                        Leaderboard for {{ now()->format('F j, Y') }}
+                    </h3>
+                </div>
+
                 @if($topScores->isEmpty())
                     <div class="text-center py-8">
-                        <p class="text-gray-600">No scores available yet.</p>
+                        <p class="text-gray-600">No scores available for today yet.</p>
                     </div>
                 @else
                     <div class="overflow-x-auto">
@@ -25,6 +34,9 @@
                                     </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Player
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Email
                                     </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Puzzle
@@ -45,14 +57,26 @@
                                     <tr class="{{ $index % 2 ? 'bg-gray-50' : 'bg-white' }}">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {{ $topScores->firstItem() + $index }}
+                                            @if($index < 3)
+                                                <span class="ml-1">
+                                                    @if($index === 0) 🏆
+                                                    @elseif($index === 1) 🥈
+                                                    @else 🥉
+                                                    @endif
+                                                </span>
+                                            @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {{ $score->user->name }}
+                                            @if($score->user_id === auth()->id())
+                                                <span class="ml-1 text-blue-600">(You)</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $score->user->email }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{-- <a href="{{ route('leaderboard.puzzle', $score->puzzle) }}" class="text-blue-600 hover:text-blue-900"> --}}
-                                                {{ $score->puzzle->title }}
-                                            {{-- </a> --}}
+                                            {{ $score->puzzle->title }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {{ number_format($score->score, 1) }}%
@@ -61,7 +85,7 @@
                                             {{ floor($score->completion_time / 60) }}:{{ str_pad($score->completion_time % 60, 2, '0', STR_PAD_LEFT) }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $score->updated_at->diffForHumans() }}
+                                            {{ $score->updated_at->format('h:i A') }}
                                         </td>
                                     </tr>
                                 @endforeach

@@ -34,6 +34,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/puzzles/{puzzle}/submit', [GameController::class, 'submit'])->name('puzzles.submit');
     Route::post('/puzzles/{puzzle}/state', [GameController::class, 'updateGameState'])->name('puzzles.updateState');
     Route::get('/puzzles/{puzzle}/completion', [GameController::class, 'completion'])->name('puzzles.completion');
+    Route::get('/puzzles/{puzzle}/leaderboard', [GameController::class, 'getLeaderboard'])
+        ->name('puzzles.leaderboard');
 
     // Leaderboard routes
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Puzzle;
 use App\Models\UserScore;
+use App\Models\Score;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -77,13 +78,40 @@ class GameController extends Controller
             ->where('puzzle_id', $puzzle->id)
             ->firstOrFail();
 
-        $winnerDeclarationTime = now()->setTime(18, 0, 0);
-        if ($winnerDeclarationTime->isPast()) {
-            $winnerDeclarationTime = $winnerDeclarationTime->addDay();
-        }
-        $timeRemaining = now()->diffInSeconds($winnerDeclarationTime, false);
+        // Get current time and today's declaration time (5:30 PM)
+        $now = now();
+        $declarationTime = today()->setTime(17, 30, 0);
+        $midnight = today()->addDay()->startOfDay(); // Next day midnight
 
-        return view('game.completion', compact('puzzle', 'userScore', 'winnerDeclarationTime', 'timeRemaining'));
+        // Calculate remaining time based on current time
+        if ($now->lt($declarationTime)) {
+            // Before 5:30 PM - countdown to 5:30 PM
+            $timeRemaining = $now->diffInSeconds($declarationTime);
+            $countdownCompleted = false;
+        } elseif ($now->lt($midnight)) {
+            // After 5:30 PM but before midnight - show position
+            $timeRemaining = 0;
+            $countdownCompleted = true;
+        } else {
+            // After midnight - redirect to leaderboard or home
+            return redirect()->route('leaderboard.puzzle', $puzzle);
+        }
+
+        // For debugging
+        Log::info('Time Debug', [
+            'current_time' => $now->format('Y-m-d H:i:s'),
+            'declaration_time' => $declarationTime->format('Y-m-d H:i:s'),
+            'midnight' => $midnight->format('Y-m-d H:i:s'),
+            'remaining_seconds' => $timeRemaining,
+            'countdown_completed' => $countdownCompleted
+        ]);
+
+        return view('game.completion', compact(
+            'puzzle', 
+            'userScore', 
+            'timeRemaining',
+            'countdownCompleted'
+        ));
     }
 
     public function submit(Request $request, Puzzle $puzzle)
@@ -204,5 +232,25 @@ class GameController extends Controller
             'success' => true,
             'remaining_time' => $puzzle->time_limit ? max(0, ($puzzle->time_limit * 60) - (time() - $userScore->progress_data['start_time'])) : null
         ]);
+    }
+
+    public function getLeaderboard(Puzzle $puzzle)
+    {
+        $leaderboard = Score::where('puzzle_id', $puzzle->id)
+            ->with('user:id,name')
+            ->orderBy('score', 'desc')
+            ->orderBy('completion_time', 'asc')
+            ->take(10)
+            ->get()
+            ->map(function ($score) {
+                return [
+                    'user_id' => $score->user_id,
+                    'user_name' => $score->user->name,
+                    'score' => number_format($score->score, 1),
+                    'completion_time' => $score->completion_time
+                ];
+            });
+
+        return response()->json($leaderboard);
     }
 }

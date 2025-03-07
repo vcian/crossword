@@ -11,13 +11,17 @@ class LeaderboardController extends Controller
 {
     public function index()
     {
-        $topScores = UserScore::with(['user', 'puzzle'])
+        $today = now()->startOfDay();
+        
+        $topScores = UserScore::with(['user:id,name,email', 'puzzle'])
             ->where('completed', true)
+            ->whereDate('created_at', $today)
             ->orderBy('score', 'desc')
             ->orderBy('completion_time', 'asc')
             ->paginate(20);
 
-        Log::info('Leaderboard Scores:', [
+        Log::info('Today\'s Leaderboard Scores:', [
+            'date' => $today->format('Y-m-d'),
             'count' => $topScores->count(),
             'total' => $topScores->total(),
             'scores' => $topScores->items()
@@ -29,10 +33,12 @@ class LeaderboardController extends Controller
     public function show($puzzleId)
     {
         $puzzle = Puzzle::findOrFail($puzzleId);
+        $today = now()->startOfDay();
         
         $leaderboard = UserScore::where('puzzle_id', $puzzleId)
             ->with('user')
             ->where('completed', true)
+            ->whereDate('created_at', $today)
             ->orderBy('score', 'desc')
             ->orderBy('completion_time', 'asc')
             ->take(100)

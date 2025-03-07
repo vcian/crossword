@@ -39,4 +39,6 @@
         </div>
     </div>
 </div>
-@endsection 
+@endsection
+
+@section('title', 'Crossword Leaderboard Details') 
