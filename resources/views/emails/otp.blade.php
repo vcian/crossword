@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Verification Code</title>
     <style>
         body {
@@ -51,13 +52,15 @@
             font-weight: bold;
             letter-spacing: 4px;
             color: #1f2937;
+            margin-bottom: 20px;
         }
         .puzzle-grid {
-            display: grid;
-            grid-template-columns: repeat(11, 1fr);
+            display: inline-flex;
+            flex-wrap: nowrap;
             gap: 2px;
             margin: 20px auto;
-            max-width: 330px;
+            max-width: 100%;
+            justify-content: center;
         }
         .puzzle-letter {
             background: #fff;
@@ -65,10 +68,30 @@
             padding: 8px;
             text-align: center;
             font-weight: bold;
+            min-width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
         }
         .puzzle-letter-dark {
             background: #1f2937;
             color: white;
+        }
+        @media screen and (max-width: 480px) {
+            .puzzle-grid {
+                gap: 1px;
+            }
+            .puzzle-letter {
+                padding: 4px;
+                min-width: 16px;
+                height: 16px;
+                font-size: 12px;
+            }
+            .logo-text {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
